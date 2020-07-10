@@ -1,0 +1,209 @@
+---
+title: "Data Analyst Test Task - Game Analysis Report"
+author: "Puneeth Nikin Krishnan"
+date: "10/07/2020"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Objective
+
+The objective of this analysis is to identify the optimum time to display the shop. It is imperative to establish the relationship between the available parameters and ARPU (Average Revenue Per User) to be able to gauge the effect modifying the controllable factors will have on the overall gameplay experience and revenue generation.
+
+# Exploratory Data Analysis
+I have performed exploratory data analysis to analyse and understand these relationships so as to  deliver a strategy that will optimise ARPU.
+
+## About the DataSet
+```{r install libraries,echo=FALSE, message=FALSE, warning=FALSE}
+if(!require(caret))
+  install.packages("caret", repos = "http://cran.us.r-project.org")
+if (!require(rvest))
+  install.packages("rvest", repos = "http://cran.us.r-project.org")
+if (!require(tidyverse))
+  install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if (!require(ggthemes))
+  install.packages("ggthemes", repos = "http://cran.us.r-project.org")
+if(!require(caret)) 
+  install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(kableExtra)) 
+  install.packages("kableExtra", 
+                   repos = "http://cran.us.r-project.org")
+```
+
+The zip file provided at [google drive](https://drive.google.com/file/d/1w8y5MFFJY6Gw7vKdsETEuXfWkAzXAapw/view?usp=sharing) contains three csv files namely :  
+1. data_daily_activity.csv - This file contains daily activity of users.  
+```{r daily_activity,echo=FALSE, message=FALSE, warning=FALSE}
+
+daily_activity<-read_csv('data/data_daily_activity.csv')
+daily_activity%>%
+  head(4)%>%
+  knitr::kable()
+```
+
+2. data_daily_matches.csv - This file contains number of matches played by each user for a given day.  I added a column matches_till_date(number of matches played till date) by computing cumulative sum of matches.
+```{r daily_matches,echo=FALSE, message=FALSE, warning=FALSE}
+daily_matches<- read_csv('data/data_daily_matches.csv')
+daily_matches<- daily_matches%>%group_by(userId)%>%arrange(date, .by_group = TRUE)%>%mutate(matches_till_date = cumsum(matches))
+daily_matches%>%
+  head(4)%>%
+  knitr::kable()
+```
+
+3. data_in_app_purchases.csv - This file contains details of purchases made by users. 
+```{r in_app_purchases,echo=FALSE, message=FALSE, warning=FALSE}
+in_app_purchases<-read_csv('data/data_in_app_purchases.csv')
+in_app_purchases%>%
+  head(4)%>%
+  knitr::kable()
+```
+
+## Wrangling
+
+I have combined all three datasets/dataframes into one single dataframe user_data to simplify analysis.I have added two columns acquisition_date(date user was added) and days_since_acquisition(number of days passed since acquisiotion) to user_data.
+```{r user_data,echo=FALSE, message=FALSE, warning=FALSE}
+user_data <-
+  daily_activity %>%
+  full_join(daily_matches, by =
+              c('userId', 'date')) %>%
+  full_join(in_app_purchases, by =
+              c('userId', 'date'))
+user_data<-
+  user_data %>%
+  group_by(userId) %>%  
+  mutate(acquisition_date =  min(date))%>%
+  mutate(
+    days_since_acquisition = as.numeric(date - acquisition_date)
+  )%>%
+  filter(!is.na(abTestGroup))
+user_data%>%
+  head(4)%>%
+  knitr::kable()%>%
+  kable_styling(latex_options = "scale_down")
+```
+
+Using user_data I have derived a new dataframe called N_Day_Analysis to perform date wise analysis and compute Retention Rate, Cumulative ARPU and Cumulative Revenue.
+```{r N_Day_Analysis,echo=FALSE, message=FALSE, warning=FALSE}
+N_Day_Analysis<-
+  user_data%>%
+  group_by(abTestGroup, acquisition_date, days_since_acquisition)%>%
+  summarise(n = n(), 
+            revenue = sum(cost, na.rm = TRUE),
+            conversion=sum(!is.na(cost)))%>%
+  mutate(
+    retention_rate = n / max(n),
+    Cumulative_ARPU = cumsum(revenue) / max(n),
+    Cumulative_conversion=cumsum(conversion)/max(n),
+  )
+```
+
+## Analyse Realationship between different parameters
+### Correlation Analysis (Number of users and Revenue)
+While it is intuitive that more number of active users will lead to higher revenue it is critical to analyse the relationship.
+```{r Correlation,echo=FALSE, message=FALSE, warning=FALSE}
+
+cor(N_Day_Analysis[c('n','revenue','conversion','retention_rate')])
+
+```
+
+The correlation test shows that all the parameters are positively correlated. A higher retention rate will lead to higher conversion and consequently higher revenues. 
+
+### Analyse A/B Test results
+```{r A/B Test,echo=FALSE, message=FALSE, warning=FALSE}
+N_Day_Analysis%>%
+  ggplot(aes(as.factor(days_since_acquisition), Cumulative_ARPU, col = abTestGroup))+
+  geom_boxplot()+
+  ggtitle("Figure 1 A/B Test for ARPU")+
+  xlab('days_since_acquisition')+
+  ylab('Cumulative ARPU')+ 
+  theme_economist() + 
+  scale_colour_economist()
+N_Day_Analysis%>%
+  filter(days_since_acquisition >0)%>%
+  ggplot(aes(as.factor(days_since_acquisition), retention_rate, col = abTestGroup))+
+  geom_boxplot()+
+  ggtitle("Figure 2 A/B Test for Retention")+
+  xlab('days_since_acquisition')+
+  ylab('Retention_Rate')+ 
+  theme_economist() + 
+  scale_colour_economist()
+```
+
+Fig 1. shows that test_group_b clearly had a higher Cumulative ARPU in the first few days. This could be a consequence of early buyers. However their is evidence of rapid increase in cumulative ARPU generated from test_group_a and control_group in comparison to test_group_b. Test_group_a in particular performs the best over the 15 day period.  
+
+Fig 2. shows that retention rate is higher for control_group and test_group_a in the early stages. This could be evidence of higher retention rates for groups in which the display of shop was delayed. The fact that in Figure 1 Cumulative ARPU for test_group_a and control_group rises quicker than test_group_b could be a consequence of higher retention rates for the two groups.
+
+
+## Optimum Number of Matches Prior to display of Shop
+
+It is clear from this analysis that higher retention rate can lead to higher conversion rates and consequently higher Cumulative ARPU. Also test_group_a performs the best in terms of cumulative ARPU over a period of time. 
+While it can be seen that delaying the display of shop has a potential increase in retention_rates, their is also a loss in revenue when the shop is not displayed. A strategy needs to be devised that balances the need for revenue while maintaining retention rates. 
+
+To achieve this goal, analysis for number of matches prior to purchase of a product is performed.
+
+### Assumption
+The dataframe user_data contains total number of matches played for a given day and if a product has been purchased on that day. I have assumed that the product has been purchased at the end of the day. If a player plays 10 games on a given day and purchases product "cashinjection" on that day, I have assumed that the product was purchased after playing those 10 games.
+
+### Distribution Analysis
+
+Users tend to purchase products at different stages of their engagement with the game and it is necessary to study the distribution of matches prior for users first purchase of any product.
+
+```{r distribution matches,echo=FALSE, message=FALSE, warning=FALSE}
+purchased<-user_data%>%
+  filter(!is.na(product))%>%
+  group_by(userId)%>%
+  arrange(date, .by_group = TRUE)%>%
+  filter(row_number()==1)%>%
+  ungroup()
+purchased%>%
+  ggplot(aes(matches))+
+  geom_histogram(
+    aes(y = ..density..),
+    alpha = 0.7,
+    position = "identity"
+  )+
+  geom_vline(aes(xintercept = mean(matches, na.rm = TRUE)),
+             linetype = "dashed")+
+  geom_density()+
+  scale_x_log10(breaks = c(1,2,4,8,12,14,25,40,100))+
+  theme_economist() + 
+  scale_colour_economist()
+```
+
+The distribution shows that that most users tend to purchase a product between the 5th game and 25th game. The average number of games played prior to first purchase is approx. 14. There is a spike in number of users purchasing a product after 1st, 2nd and 4th game. This could be potentially due to display of shop for test groups at these junctures. Purchase of  a product peaks post the 8th game.
+
+To study this further emperical Cumulative Distribution Function (eCDF) is generated.
+
+```{r eCDF,echo=FALSE, message=FALSE, warning=FALSE}
+d_fun<-ecdf(purchased$matches)
+purchased%>%ggplot(aes(matches))+
+  stat_ecdf(geom='point') +
+  scale_x_continuous(breaks = c(0,10,20,30,40,50,60,70,80,90,100))+
+  theme_economist() + 
+  scale_colour_economist()
+```
+
+
+
+```{r eCDF eval, message=FALSE, warning=FALSE}
+# probability of purchase before 2nd game
+d_fun(2)*100
+# probability of purchase between 2nd and 4th game
+(d_fun(4)-d_fun(2))*100
+# probability of purchase between 4th and 6th game
+(d_fun(6)-d_fun(4))*100
+
+# probability of purchase between 6th and 8th game
+(d_fun(8)-d_fun(6))*100
+# probability of purchase between 8th and 10th game
+(d_fun(10)-d_fun(8))*100
+
+```
+The probability of purchasing a product between 1st game and 4th game is:  14%
+The probability of purchasing a product between 1st game and 4th game is:  
+
