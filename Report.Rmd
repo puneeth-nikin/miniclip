@@ -80,11 +80,18 @@ user_data<-
   mutate(
     days_since_acquisition = as.numeric(date - acquisition_date)
   )%>%
-  filter(!is.na(abTestGroup))
+  filter(!is.na(abTestGroup))%>%ungroup()
 user_data%>%
+  select(1:8)%>%
   head(4)%>%
   knitr::kable()%>%
-  kable_styling(latex_options = "scale_down")
+  kable_styling()
+user_data%>%
+  select(9:11)%>%
+  head(4)%>%
+  knitr::kable()%>%
+  kable_styling()
+
 ```
 
 Using user_data I have derived a new dataframe called N_Day_Analysis to perform date wise analysis and compute Retention Rate, Cumulative ARPU and Cumulative Revenue.
@@ -99,7 +106,18 @@ N_Day_Analysis<-
     retention_rate = n / max(n),
     Cumulative_ARPU = cumsum(revenue) / max(n),
     Cumulative_conversion=cumsum(conversion)/max(n),
-  )
+  )%>%
+  ungroup()
+N_Day_Analysis%>%
+  select(1:7)%>%
+  head(4)%>%
+  knitr::kable()%>%
+  kable_styling()
+N_Day_Analysis%>%
+  select(8:9)%>%
+  head(4)%>%
+  knitr::kable()%>%
+  kable_styling()
 ```
 
 ## Analyse Realationship between different parameters
@@ -111,7 +129,7 @@ cor(N_Day_Analysis[c('n','revenue','conversion','retention_rate')])
 
 ```
 
-The correlation test shows that all the parameters are positively correlated. A higher retention rate will lead to higher conversion and consequently higher revenues. 
+The correlation matrix shows that all the parameters are positively correlated. A higher retention rate will lead to higher conversion and consequently higher revenues. 
 
 ### Analyse A/B Test results
 ```{r A/B Test,echo=FALSE, message=FALSE, warning=FALSE}
