@@ -8,6 +8,8 @@ if (!require(ggthemes))
   install.packages("ggthemes", repos = "http://cran.us.r-project.org")
 if(!require(caret)) 
   install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(scales)) 
+  install.packages("scales", repos = "http://cran.us.r-project.org")
 daily_activity<-read_csv('data/data_daily_activity.csv')
 daily_matches<- read_csv('data/data_daily_matches.csv')
 in_app_purchases<-read_csv('data/data_in_app_purchases.csv')
@@ -52,28 +54,39 @@ N_Day_Analysis%>%
   geom_boxplot()+
   theme_fivethirtyeight()
 
-user_data%>%
+purchased<-user_data%>%
   filter(!is.na(product))%>%
+  group_by(userId)%>%
+  arrange(date, .by_group = TRUE)%>%
+  filter(row_number()==1)%>%
+  ungroup()
+purchased%>%
   ggplot(aes(matches))+
   geom_histogram(
     aes(y = ..density..),
-    fill = 'darkblue',
-    alpha = 0.2,
+    alpha = 0.7,
     position = "identity"
   )+
   geom_vline(aes(xintercept = mean(matches, na.rm = TRUE)),
              linetype = "dashed")+
   geom_density()+
-  scale_x_log10()+
-  theme_fivethirtyeight()
-purchased<-user_data%>%
-  filter(!is.na(product))
-density(purchased$matches,na.rm = TRUE)
-d_fun<-ecdf(purchased$matches)
-d_fun(8)
+  scale_x_log10(breaks = c(1,2,4,8,12,14,25,40,100))+
+  theme_economist() + 
+  scale_colour_economist()
 purchased%>%ggplot(aes(matches)) +
   stat_ecdf(col='blue')+
   theme_fivethirtyeight()+
   geom_vline(xintercept = 5)
+d_fun<-ecdf(purchased$matches)
+purchased%>%ggplot(aes(matches))+
+  stat_ecdf(geom='point') +
+  scale_x_continuous(breaks = c(0,10,20,30,40,50,60,70,80,90,100))+
+  theme_economist() + 
+  scale_colour_economist()
 
-fit_lm<-N_Day_Analysis%>%lm(conversion~n,data=.)
+N_Day_Analysis%>%
+  group_by(abTestGroup,days_since_acquisition)%>%summarise(average_ARPU=mean(Cumulative_ARPU))%>%ungroup()%>%ggplot(aes(as.factor(days_since_acquisition),average_ARPU,fill=abTestGroup))+geom_col(position = 'dodge')+
+  theme_economist() + 
+  scale_colour_economist()+scale_fill_manual(values=c("#6794a7","#014d64","#01a2d9"))
+
+

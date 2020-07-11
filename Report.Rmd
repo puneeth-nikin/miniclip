@@ -124,6 +124,20 @@ N_Day_Analysis%>%
   theme_economist() + 
   scale_colour_economist()
 N_Day_Analysis%>%
+  group_by(abTestGroup,days_since_acquisition)%>%
+  summarise(average_ARPU=mean(Cumulative_ARPU))%>%
+  ungroup()%>%
+  ggplot(aes(as.factor(days_since_acquisition),average_ARPU,fill=abTestGroup))+
+  geom_col(position = 'dodge')+
+  ggtitle("Figure 2 A/B Test for ARPU")+
+  theme_economist() + 
+  scale_colour_economist()+scale_fill_manual(values=c("#6794a7","#014d64","#01a2d9"))
+
+```
+
+Fig 1. shows that test_group_b clearly had a higher Cumulative ARPU in the first few days. This could be a consequence of early buyers. However their is evidence of rapid increase in cumulative ARPU generated from test_group_a and control_group in comparison to test_group_b. Test_group_a in particular performs the best over the 15 day period.  
+```{r A/B Test retention,echo=FALSE, message=FALSE, warning=FALSE}
+N_Day_Analysis%>%
   filter(days_since_acquisition >0)%>%
   ggplot(aes(as.factor(days_since_acquisition), retention_rate, col = abTestGroup))+
   geom_boxplot()+
@@ -134,7 +148,6 @@ N_Day_Analysis%>%
   scale_colour_economist()
 ```
 
-Fig 1. shows that test_group_b clearly had a higher Cumulative ARPU in the first few days. This could be a consequence of early buyers. However their is evidence of rapid increase in cumulative ARPU generated from test_group_a and control_group in comparison to test_group_b. Test_group_a in particular performs the best over the 15 day period.  
 
 Fig 2. shows that retention rate is higher for control_group and test_group_a in the early stages. This could be evidence of higher retention rates for groups in which the display of shop was delayed. The fact that in Figure 1 Cumulative ARPU for test_group_a and control_group rises quicker than test_group_b could be a consequence of higher retention rates for the two groups.
 
@@ -149,6 +162,7 @@ To achieve this goal, analysis for number of matches prior to purchase of a prod
 ### Assumption
 The dataframe user_data contains total number of matches played for a given day and if a product has been purchased on that day. I have assumed that the product has been purchased at the end of the day. If a player plays 10 games on a given day and purchases product "cashinjection" on that day, I have assumed that the product was purchased after playing those 10 games.
 
+\newpage
 ### Distribution Analysis
 
 Users tend to purchase products at different stages of their engagement with the game and it is necessary to study the distribution of matches prior for users first purchase of any product.
@@ -181,7 +195,8 @@ To study this further emperical Cumulative Distribution Function (eCDF) is gener
 
 ```{r eCDF,echo=FALSE, message=FALSE, warning=FALSE}
 d_fun<-ecdf(purchased$matches)
-purchased%>%ggplot(aes(matches))+
+purchased%>%
+  ggplot(aes(matches))+
   stat_ecdf(geom='point') +
   scale_x_continuous(breaks = c(0,10,20,30,40,50,60,70,80,90,100))+
   theme_economist() + 
@@ -193,6 +208,8 @@ purchased%>%ggplot(aes(matches))+
 ```{r eCDF eval, message=FALSE, warning=FALSE}
 # probability of purchase before 2nd game
 d_fun(2)*100
+# probability of purchase before 2nd game
+d_fun(4)*100
 # probability of purchase between 2nd and 4th game
 (d_fun(4)-d_fun(2))*100
 # probability of purchase between 4th and 6th game
@@ -202,8 +219,13 @@ d_fun(2)*100
 (d_fun(8)-d_fun(6))*100
 # probability of purchase between 8th and 10th game
 (d_fun(10)-d_fun(8))*100
+#Retention rate at day 6
+N_Day_Analysis%>%ungroup()%>%group_by(abTestGroup)%>%filter(days_since_acquisition==8)%>%summarise(m=mean(retention_rate))
+```
+\newpage
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
+
+  
 
 ```
-The probability of purchasing a product between 1st game and 4th game is:  14%
-The probability of purchasing a product between 1st game and 4th game is:  
 
