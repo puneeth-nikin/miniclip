@@ -219,6 +219,10 @@ purchased%>%
   ggtitle("Figure 4 Distribution of Purchase to Matches")+
   theme_economist() + 
   scale_colour_economist()
+
+```
+
+```{r eCDF eval, message=FALSE, warning=FALSE}
 d_fun<-ecdf(purchased$matches)
 # probability of purchase before 3rd game
 d_fun(3)*100
@@ -227,4 +231,5 @@ d_fun(5)*100
 # probability of purchase before 5th game
 (d_fun(25)-d_fun(5))*100
 ```
+
 This study shows that 13.7 % of users purchase a product before the 3rd game, 24.21% before the 5th, 60.59 % between 5th to 25th game and the rest later. This data confirms the fact that the purchasing is strongly skewed towards the early stages of the game.
