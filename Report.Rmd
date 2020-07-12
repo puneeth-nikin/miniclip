@@ -20,8 +20,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 The objective of this analysis is to identify the optimum time to display the shop. It is imperative to establish the relationship between the available parameters and ARPU (Average Revenue Per User) to be able to gauge the effect modifying the controllable factors will have on the overall gameplay experience and revenue generation.  
 
+
 # Exploratory Data Analysis
-I have performed exploratory data analysis to analyse and understand these relationships so as to  deliver a strategy that will optimise ARPU.  
+I have performed exploratory data analysis to analyse and understand the relationship between retention, conversion and revenue so as to  deliver a strategy that will optimise ARPU.  
 
 ## About the DataSet
 ```{r install libraries,echo=TRUE, message=FALSE, warning=FALSE}
@@ -45,7 +46,7 @@ The zip file provided at [google drive](https://drive.google.com/file/d/1w8y5MFF
 daily_activity<-read_csv('data/data_daily_activity.csv')
 daily_activity%>%
   head(4)%>%
-  knitr::kable()%>%
+  knitr::kable(caption = "daily_activity")%>%
   kable_styling()
 ```
 
@@ -55,7 +56,7 @@ daily_matches<- read_csv('data/data_daily_matches.csv')
 daily_matches<- daily_matches%>%group_by(userId)%>%arrange(date, .by_group = TRUE)%>%mutate(matches_till_date = cumsum(matches))
 daily_matches%>%
   head(4)%>%
-  knitr::kable()%>%
+  knitr::kable(caption="daily_matches")%>%
   kable_styling()
 ```
 
@@ -64,7 +65,7 @@ daily_matches%>%
 in_app_purchases<-read_csv('data/data_in_app_purchases.csv')
 in_app_purchases%>%
   head(4)%>%
-  knitr::kable()%>%
+  knitr::kable(caption='in_app_purchases')%>%
   kable_styling()
 ```
 
@@ -88,49 +89,49 @@ user_data<-
   filter(!is.na(abTestGroup))%>%ungroup()
 user_data[complete.cases(user_data), ]%>%
   head(4)%>%
-  knitr::kable()%>%
+  knitr::kable(caption = 'user_data')%>%
   kable_styling()
 
 
 ```
 
-Using user_data I have derived a new dataframe called N_Day_Analysis to perform date wise analysis and compute Retention Rate, Cumulative ARPU and Cumulative Revenue.  
+Using user_data, I have derived a new dataframe called N_Day_Analysis to perform date wise analysis and compute Retention Rate, Cumulative ARPU and Cumulative Revenue.  
 ```{r N_Day_Analysis,echo=TRUE, message=FALSE, warning=FALSE}
 N_Day_Analysis<-
   user_data%>%
   group_by(abTestGroup, acquisition_date, days_since_acquisition)%>%
-  summarise(n = n(), 
+  summarise(number_of_users = n(), 
             revenue = sum(cost, na.rm = TRUE),
             conversion=sum(!is.na(cost)))%>%
   mutate(
-    retention_rate = n / max(n),
-    Cumulative_ARPU = cumsum(revenue) / max(n),
-    Cumulative_conversion=cumsum(conversion)/max(n),
+    retention_rate = number_of_users / max(number_of_users),
+    Cumulative_ARPU = cumsum(revenue) / max(number_of_users),
+    Cumulative_conversion=cumsum(conversion)/max(number_of_users),
   )%>%
   ungroup()
 N_Day_Analysis%>%
   head(4)%>%
-  knitr::kable()%>%
+  knitr::kable(caption = 'N_Day_Analysis')%>%
   kable_styling()
 ```
 
-## Analyse Realationship between different parameters
+## Analyse Relationship between different parameters
 ### Correlation Analysis (Number of users and Revenue)
 While it is intuitive that more number of active users will lead to higher revenue it is critical to analyse the relationship.  
 ```{r Correlation,echo=TRUE, message=FALSE, warning=FALSE}
 
-cor(N_Day_Analysis[c('n','revenue','conversion','retention_rate')])
+cor(N_Day_Analysis[c('revenue','conversion','retention_rate')])
 
 ```
 
 The correlation matrix shows that all the parameters are positively correlated. A higher retention rate will lead to higher conversion and consequently higher revenues.  
 
-### Analyse A/B Test results
+### Analyse cumulative ARPU for groups
 ```{r A/B Test,echo=TRUE, message=FALSE, warning=FALSE}
 N_Day_Analysis%>%
   ggplot(aes(as.factor(days_since_acquisition), Cumulative_ARPU, col = abTestGroup))+
   geom_boxplot()+
-  ggtitle("Figure 1 A/B Test for ARPU")+
+  ggtitle("Figure 1 - cumulative ARPU")+
   xlab('days_since_acquisition')+
   ylab('Cumulative ARPU')+ 
   theme_economist() + 
@@ -142,33 +143,45 @@ N_Day_Analysis%>%
   ggplot(aes(as.factor(days_since_acquisition),average_ARPU,fill=abTestGroup))+
   geom_col(position = 'dodge')+
   xlab('days_since_acquisition')+
-  ggtitle("Figure 2 A/B Test for ARPU")+
+  ggtitle("Figure 2 - Average cumulative ARPU")+
   theme_economist() + 
   scale_colour_economist()+scale_fill_manual(values=c("#6794a7","#014d64","#01a2d9"))
 
 ```
   
-Figure 1 is a boxplot of Cumulative ARPU over different days since acquisition for each group. Figure 2 shows the average cumulative ARPU over diffent acquisition days. While ARPU increases everyday it can be seen that the test_group_a takes a strong lead in the initial days. This can be evidence of the fact that there is significant purchasing activity in the early stages of the game. Figure 2 also shows that rate of increase of cumulative ARPU for test_group_a and control_group is faster than test_group_b and hence these two groups tend to catch up with test_group_b over the period of time. This can be evidence of the fact that retention rate increases when display of shop is delayed.  
+Figure 1 is a boxplot of Cumulative ARPU over different days since acquisition for each group. Figure 2 shows the average cumulative ARPU over different acquisition days. While ARPU increases everyday it can be seen that the test_group_a takes a strong lead in the initial days.  Figure 2 also shows that rate of increase of cumulative ARPU for test_group_a and control_group is faster than test_group_b and hence these two groups tend to catch up with test_group_b over the period of time. 
+
+### Analyse retention rate for groups  
+
 ```{r A/B Test retention,echo=TRUE, message=FALSE, warning=FALSE}
 N_Day_Analysis%>%
   filter(days_since_acquisition >0)%>%
   ggplot(aes(as.factor(days_since_acquisition), retention_rate, col = abTestGroup))+
   geom_boxplot()+
-  ggtitle("Figure 3 A/B Test for Retention")+
+  ggtitle("Figure 3 - Retention Rate")+
   xlab('days_since_acquisition')+
   ylab('Retention_Rate')+ 
   theme_economist() + 
   scale_colour_economist()
+N_Day_Analysis%>%
+  filter(days_since_acquisition!=0)%>%
+  group_by(abTestGroup,days_since_acquisition)%>%
+  summarise(avg_retention_rate=mean(retention_rate))%>%
+  ggplot(aes(as.factor(days_since_acquisition),avg_retention_rate,fill=abTestGroup))+
+  geom_col(position = 'dodge')+
+  xlab('days_since_acquisition')+
+  ggtitle("Figure 4 -  Average Retention Rate")+
+  theme_economist() + 
+  scale_colour_economist()+scale_fill_manual(values=c("#6794a7","#014d64","#01a2d9"))
 ```
 
 
-Figure 3 shows that retention rate drops rapidly during the period of analysis for all groups in general. This denotes that the period of analysis that is 15 days can be assumed to be the overall lifecycle for most users with minimal revenue generation post that for a specific acquisition day.The graph also shows that retention rate is higher for control_group and test_group_a in the early stages. This could be evidence of higher retention rates for groups in which the display of shop was delayed.  
+Retention rate for test_group_a and control_group is marginally higher in the two days since acquisition with a higher median value as seen in Figure 3 .Figure 3 shows that retention rate drops rapidly during the period of analysis for all groups in general. Therefore the possibility of conversion also decreases with similar rates due to high correlation among these parameters. However it is also to be noted that the difference in retention rate among the groups is minimal in the long run as can be seen in Figure 4.
 
 
 ## Optimum Number of Matches Prior to display of Shop
 
-It is clear from this analysis that higher retention rate can lead to higher conversion rates and consequently higher Cumulative ARPU. Also test_group_a performs the best in terms of cumulative ARPU over a period of time. 
-While it can be seen that delaying the display of shop has a potential increase in retention_rates, their is also a loss in revenue when the shop is not displayed. A strategy needs to be devised that balances the need for revenue while maintaining retention rates.  
+It is clear from this analysis that higher retention rate can lead to higher conversion rates and consequently higher Cumulative ARPU. While it can be seen that delaying the display of shop has a potential increase in retention rates in the first few days since acquisition, there could be a loss in revenue when the shop is not displayed. A strategy needs to be devised that balances the need for revenue while maintaining retention rates.  
 
 To achieve this goal, analysis for number of matches prior to purchase of a product is performed.  
 
@@ -194,16 +207,17 @@ dist_plot<-purchased%>%
     alpha = 0.4,
     fill="#6794a7"
   )+
-  scale_x_log10(breaks = c(1,2,4,8,12,14,25,40,100))+
+  scale_x_log10(breaks = c(1,2,4,8,12,25,40,100))+
   theme_economist() + 
   scale_colour_economist()
 dist_plot+
   geom_vline(aes(xintercept = mean(matches, na.rm = TRUE)),
-             linetype = "dashed")
+             linetype = "dashed")+
+  ggtitle("Figure 5 - Distribution of purchase for matches played")
 
 ```
 
-The distribution shows that that most users tend to purchase a product between the 5th game and 25th game. The average number of games played prior to first purchase is approx. 14. There is a spike in number of users purchasing a product after 1st, 2nd and 4th game. This could be potentially due to display of shop for test groups at these junctures. Purchase of  a product peaks post the 8th game. This activity can be quantified by the emperical Cumulative Distribution Function (eCDF).  
+The distribution shows that that most users tend to purchase a product between the 5th game and 25th game. The average number of games played prior to first purchase is approx. 14. There is a spike in number of users purchasing a product after 1st, 2nd and 4th game. This could be potentially due to display of shop for test groups at these junctures. Purchase of  a product peaks post the 8th game. This activity can be quantified by the empirical Cumulative Distribution Function (eCDF).  
 
 ```{r eCDF,echo=TRUE, message=FALSE, warning=FALSE}
 
@@ -211,7 +225,7 @@ purchased%>%
   ggplot(aes(matches))+
   stat_ecdf(geom='point') +
   scale_x_continuous(breaks = c(0,10,20,30,40,50,60,70,80,90,100))+
-  ggtitle("Figure 4 Distribution of Purchase to Matches")+
+  ggtitle("Figure 6 - eCDF")+
   theme_economist() + 
   scale_colour_economist()
 
@@ -227,16 +241,16 @@ d_fun(5)*100
 (d_fun(25)-d_fun(5))*100
 ```
 
-This study shows that 13.7 % of users purchase a product before the 3rd game, 24.21% before the 5th, 60.59 % between 5th to 25th game and the rest later. This data confirms the fact that the purchasing is strongly skewed towards the early stages of the game.  
+This study shows that 13.7 % of users purchase a product before the 3rd game, 24.21% before the 5th, 60.59 % between 5th to 25th game and the rest later. This data confirms the fact that the purchasing is strongly skewed towards the early stages.  
 
 However by splitting the distribution study for each group more insight on the early purchasing activity can be garnered.  
 
 ```{r distribution matches individual,echo=TRUE, message=FALSE, warning=FALSE}
 dist_plot+
-  facet_grid(rows=vars(abTestGroup))
+  facet_grid(rows=vars(abTestGroup))+
+  ggtitle("Figure 7 - Distribution for each group")
 ```
-  
-In general it can be seen that when the shop is first displayed there is high buying activity.
+
 ```{r eCDF eval individual, echo=TRUE,message=FALSE, warning=FALSE}
 purchased%>%
   group_by(abTestGroup)%>%
@@ -245,9 +259,29 @@ purchased%>%
     under_5_matches=ecdf(matches)(5)*100,
     between_5_and_25_matches=(ecdf(matches)(25)-ecdf(matches)(5))*100,
     after_25_matches=100-ecdf(matches)(25)*100)%>%
-
-  knitr::kable()%>%
+  knitr::kable(caption = "Probability of purchase based on distribution")%>%
   kable_styling()
 ```
 
-A group wise probability analysis of purchases reveals strong purchasing tendencies in the very early stages of the game. This study makes a strong case for display of shop early.
+A group wise probability analysis of purchases confirms strong purchasing tendencies when the shop is displayed for the first time.
+
+# Inference
+
+Retention Rate, cumulative ARPU and conversion are highly correlated with higher retention rates leading to higher conversion and subsequently higher cumulative ARPU. As a consequence, achieving higher cumulative ARPU would be possible by improving retention rate. 
+
+The ARPU study showed higher rate of increase in cumulative ARPU for  the groups control_group and test_group_a in comparison to test_group_b. While this could have been a consequence of higher retention rates for these two groups, the retention studies revealed minimal effect on the retention rate by delaying the display of shop in the long run. However, in the first few days since acquisition test_group_a and control_group performed marginally better than test_group_b in terms of retention. An important conclusion drawn from the retention study is that retention rate decreases rapidly especially in the first few days since acquisition.  
+
+The distribution study, on the other hand, shows significant purchasing activity takes place within the first 5 matches, especially when the shop is displayed for the first time. It is imperative to capitalise during this phase. There is a potential for missed conversions when shop is not displayed during this phase.  
+
+# Limitation
+  
+I have made an assumption with respect to number of matches played prior to purchase of product on a given day. Since, I assumed that products are purchased at the end of a given day after all matches have been played, bias has been introduced in the analysis. To overcome this limitations it will be beneficial to analyse granular data for product purchases that denotes number of matches post which product was purchased.  
+
+# Recommendation
+  
+As there is significant purchasing activity in the first few matches and retention rate decreases rapidly, display of shop after 4 matches as in the case of test_group_a is not beneficial. It is counter intuitive to assume that a user will purchase a product before engaging with the game. The retention studies also show that retention rate for control_group and test_group_a was slightly higher in the first few days since acquisition and it would be beneficial to capitalise on this margin. Therefore, display of shop post 2 matches as employed in control_group is the best choice for optimising cumulative ARPU.
+
+
+
+
+
