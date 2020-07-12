@@ -8,7 +8,8 @@ output:
     toc: true
     toc_depth: 3
     number_sections: true
-    theme: united
+    theme: cerulean
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
@@ -23,7 +24,7 @@ The objective of this analysis is to identify the optimum time to display the sh
 I have performed exploratory data analysis to analyse and understand these relationships so as to  deliver a strategy that will optimise ARPU.  
 
 ## About the DataSet
-```{r install libraries,echo=FALSE, message=FALSE, warning=FALSE}
+```{r install libraries,echo=TRUE, message=FALSE, warning=FALSE}
 if(!require(caret))
   install.packages("caret", repos = "http://cran.us.r-project.org")
 if (!require(rvest))
@@ -32,8 +33,6 @@ if (!require(tidyverse))
   install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if (!require(ggthemes))
   install.packages("ggthemes", repos = "http://cran.us.r-project.org")
-if(!require(caret)) 
-  install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(kableExtra)) 
   install.packages("kableExtra", 
                    repos = "http://cran.us.r-project.org")
@@ -41,35 +40,38 @@ if(!require(kableExtra))
 
 The zip file provided at [google drive](https://drive.google.com/file/d/1w8y5MFFJY6Gw7vKdsETEuXfWkAzXAapw/view?usp=sharing) contains three csv files namely :  
 1. data_daily_activity.csv - This file contains daily activity of users.  
-```{r daily_activity,echo=FALSE, message=FALSE, warning=FALSE}
+```{r daily_activity,echo=TRUE, message=FALSE, warning=FALSE}
 
 daily_activity<-read_csv('data/data_daily_activity.csv')
 daily_activity%>%
   head(4)%>%
-  knitr::kable()
+  knitr::kable()%>%
+  kable_styling()
 ```
 
 2. data_daily_matches.csv - This file contains number of matches played by each user for a given day.  I added a column matches_till_date(number of matches played till date) by computing cumulative sum of matches.  
-```{r daily_matches,echo=FALSE, message=FALSE, warning=FALSE}
+```{r daily_matches,echo=TRUE, message=FALSE, warning=FALSE}
 daily_matches<- read_csv('data/data_daily_matches.csv')
 daily_matches<- daily_matches%>%group_by(userId)%>%arrange(date, .by_group = TRUE)%>%mutate(matches_till_date = cumsum(matches))
 daily_matches%>%
   head(4)%>%
-  knitr::kable()
+  knitr::kable()%>%
+  kable_styling()
 ```
 
 3. data_in_app_purchases.csv - This file contains details of purchases made by users.  
-```{r in_app_purchases,echo=FALSE, message=FALSE, warning=FALSE}
+```{r in_app_purchases,echo=TRUE, message=FALSE, warning=FALSE}
 in_app_purchases<-read_csv('data/data_in_app_purchases.csv')
 in_app_purchases%>%
   head(4)%>%
-  knitr::kable()
+  knitr::kable()%>%
+  kable_styling()
 ```
 
 ## Wrangling
 
 I have combined all three datasets/dataframes into one single dataframe user_data to simplify analysis.I have added two columns acquisition_date(date user was added) and days_since_acquisition(number of days passed since acquisiotion) to user_data.  
-```{r user_data,echo=FALSE, message=FALSE, warning=FALSE}
+```{r user_data,echo=TRUE, message=FALSE, warning=FALSE}
 user_data <-
   daily_activity %>%
   full_join(daily_matches, by =
@@ -84,21 +86,16 @@ user_data<-
     days_since_acquisition = as.numeric(date - acquisition_date)
   )%>%
   filter(!is.na(abTestGroup))%>%ungroup()
-user_data%>%
-  select(1:8)%>%
+user_data[complete.cases(user_data), ]%>%
   head(4)%>%
   knitr::kable()%>%
   kable_styling()
-user_data%>%
-  select(9:11)%>%
-  head(4)%>%
-  knitr::kable()%>%
-  kable_styling()
+
 
 ```
 
 Using user_data I have derived a new dataframe called N_Day_Analysis to perform date wise analysis and compute Retention Rate, Cumulative ARPU and Cumulative Revenue.  
-```{r N_Day_Analysis,echo=FALSE, message=FALSE, warning=FALSE}
+```{r N_Day_Analysis,echo=TRUE, message=FALSE, warning=FALSE}
 N_Day_Analysis<-
   user_data%>%
   group_by(abTestGroup, acquisition_date, days_since_acquisition)%>%
@@ -112,12 +109,6 @@ N_Day_Analysis<-
   )%>%
   ungroup()
 N_Day_Analysis%>%
-  select(1:7)%>%
-  head(4)%>%
-  knitr::kable()%>%
-  kable_styling()
-N_Day_Analysis%>%
-  select(8:9)%>%
   head(4)%>%
   knitr::kable()%>%
   kable_styling()
@@ -126,7 +117,7 @@ N_Day_Analysis%>%
 ## Analyse Realationship between different parameters
 ### Correlation Analysis (Number of users and Revenue)
 While it is intuitive that more number of active users will lead to higher revenue it is critical to analyse the relationship.  
-```{r Correlation,echo=FALSE, message=FALSE, warning=FALSE}
+```{r Correlation,echo=TRUE, message=FALSE, warning=FALSE}
 
 cor(N_Day_Analysis[c('n','revenue','conversion','retention_rate')])
 
@@ -135,7 +126,7 @@ cor(N_Day_Analysis[c('n','revenue','conversion','retention_rate')])
 The correlation matrix shows that all the parameters are positively correlated. A higher retention rate will lead to higher conversion and consequently higher revenues.  
 
 ### Analyse A/B Test results
-```{r A/B Test,echo=FALSE, message=FALSE, warning=FALSE}
+```{r A/B Test,echo=TRUE, message=FALSE, warning=FALSE}
 N_Day_Analysis%>%
   ggplot(aes(as.factor(days_since_acquisition), Cumulative_ARPU, col = abTestGroup))+
   geom_boxplot()+
@@ -158,7 +149,7 @@ N_Day_Analysis%>%
 ```
   
 Figure 1 is a boxplot of Cumulative ARPU over different days since acquisition for each group. Figure 2 shows the average cumulative ARPU over diffent acquisition days. While ARPU increases everyday it can be seen that the test_group_a takes a strong lead in the initial days. This can be evidence of the fact that there is significant purchasing activity in the early stages of the game. Figure 2 also shows that rate of increase of cumulative ARPU for test_group_a and control_group is faster than test_group_b and hence these two groups tend to catch up with test_group_b over the period of time. This can be evidence of the fact that retention rate increases when display of shop is delayed.  
-```{r A/B Test retention,echo=FALSE, message=FALSE, warning=FALSE}
+```{r A/B Test retention,echo=TRUE, message=FALSE, warning=FALSE}
 N_Day_Analysis%>%
   filter(days_since_acquisition >0)%>%
   ggplot(aes(as.factor(days_since_acquisition), retention_rate, col = abTestGroup))+
@@ -188,7 +179,7 @@ The dataframe user_data contains total number of matches played for a given day 
 
 Users tend to purchase products at different stages of their engagement with the game and it is necessary to study the distribution of matches prior for users first purchase of any product.  
 
-```{r distribution matches,echo=FALSE, message=FALSE, warning=FALSE}
+```{r distribution matches,echo=TRUE, message=FALSE, warning=FALSE}
 purchased<-user_data%>%
   filter(!is.na(product))%>%
   group_by(userId)%>%
@@ -212,16 +203,9 @@ dist_plot+
 
 ```
 
-The distribution shows that that most users tend to purchase a product between the 5th game and 25th game. The average number of games played prior to first purchase is approx. 14. There is a spike in number of users purchasing a product after 1st, 2nd and 4th game. This could be potentially due to display of shop for test groups at these junctures. Purchase of  a product peaks post the 8th game.However by splitting the distribution study for each group more insight on the early purchasing activity can be garnered.  
+The distribution shows that that most users tend to purchase a product between the 5th game and 25th game. The average number of games played prior to first purchase is approx. 14. There is a spike in number of users purchasing a product after 1st, 2nd and 4th game. This could be potentially due to display of shop for test groups at these junctures. Purchase of  a product peaks post the 8th game. This activity can be quantified by the emperical Cumulative Distribution Function (eCDF).  
 
-```{r distribution matches individual,echo=FALSE, message=FALSE, warning=FALSE}
-dist_plot+
-  facet_grid(rows=vars(abTestGroup))
-```
-  
-In general it can be seen that when the shop is displayed there is high buying activity. This activity can be quantified by the emperical Cumulative Distribution Function (eCDF).  
-
-```{r eCDF,echo=FALSE, message=FALSE, warning=FALSE}
+```{r eCDF,echo=TRUE, message=FALSE, warning=FALSE}
 
 purchased%>%
   ggplot(aes(matches))+
@@ -244,7 +228,26 @@ d_fun(5)*100
 ```
 
 This study shows that 13.7 % of users purchase a product before the 3rd game, 24.21% before the 5th, 60.59 % between 5th to 25th game and the rest later. This data confirms the fact that the purchasing is strongly skewed towards the early stages of the game.  
-```{r eCDF eval individual, echo=FALSE,message=FALSE, warning=FALSE}
 
+However by splitting the distribution study for each group more insight on the early purchasing activity can be garnered.  
+
+```{r distribution matches individual,echo=TRUE, message=FALSE, warning=FALSE}
+dist_plot+
+  facet_grid(rows=vars(abTestGroup))
+```
+  
+In general it can be seen that when the shop is first displayed there is high buying activity.
+```{r eCDF eval individual, echo=TRUE,message=FALSE, warning=FALSE}
+purchased%>%
+  group_by(abTestGroup)%>%
+  summarise(
+    under_3_matches=ecdf(matches)(3)*100,
+    under_5_matches=ecdf(matches)(5)*100,
+    between_5_and_25_matches=(ecdf(matches)(25)-ecdf(matches)(5))*100,
+    after_25_matches=100-ecdf(matches)(25)*100)%>%
+
+  knitr::kable()%>%
+  kable_styling()
 ```
 
+A group wise probability analysis of purchases reveals strong purchasing tendencies in the very early stages of the game. This study makes a strong case for display of shop early.
